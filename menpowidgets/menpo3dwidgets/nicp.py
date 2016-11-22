@@ -9,6 +9,8 @@ from menpowidgets.options import (AnimationOptionsWidget, TextPrintWidget,
 from menpowidgets.tools import LogoWidget
 from menpo.shape import PointCloud, ColouredTriMesh, TriMesh
 
+from .options import NICPResultWidget
+
 
 def visualize_used_points(template, w_i_n, colour=(0.2, 0.8, 0.3)):
     colours = np.ones_like(template.points)
@@ -33,32 +35,47 @@ def view_landmark_displacement(source, target, renderer, group=None):
     diff = target_lms.points - source_lms.points
     MayaviVectorViewer3d(figure_id=renderer.figure, new_figure=False,
                          points=points, vectors=diff)
-    # mlab.quiver3d(points[:, 0], points[:, 1], points[:, 2],
-    #               diff[:, 0], diff[:, 1], diff[:, 2])
 
 
 def deformation_visualization(current_instance, initial_instance, aligned_mesh,
-                              renderer, group=None, w_i_n=None):
-    in_landmarks = current_instance.landmarks[group].lms
-    #figure = in_landmarks.view(new_figure=False, marker_size=0.03,
-    # marker_colour=(0, 0.3, 1))
-    if w_i_n is not None:
-        colour = (0.2, 0.8, 0.3)
-        #coloured_mesh = visualize_used_points(current_instance, w_i_n)
-        #coloured_mesh.view(new_figure=False)
-        colours = np.ones_like(current_instance.points)
-        colours[w_i_n, 0] = colour[0]
-        colours[w_i_n, 1] = colour[1]
-        colours[w_i_n, 2] = colour[2]
-        current_instance = ColouredTriMesh(current_instance.points,
-                                           trilist=current_instance.trilist,
-                                           colours=colours)
+                              renderer, group=None, mask=None):
+    if mask is None:
+        mask = np.ones(current_instance.n_points, dtype=np.bool)
+
+    colour = (0.2, 0.8, 0.3)
+    colours = np.ones_like(current_instance.points)
+    colours[mask] = colour
+    current_instance = ColouredTriMesh(current_instance.points,
+                                       trilist=current_instance.trilist,
+                                       colours=colours)
     r = current_instance.view(new_figure=False, figure_id=renderer.figure)
     view_landmark_displacement(initial_instance, aligned_mesh,
                                renderer, group=group)
 
     # return the colouredtrimesh actor (we need to clear it!)
     return r._actors[0]
+
+
+def view_vector_distance(points, diff, figure=None, mask=None):
+    from mayavi import mlab
+    figure.scene.background = (0, 0, 0)
+    if mask is not None:
+        points = points[mask]
+        diff = diff[mask]
+    mlab.quiver3d(points[:, 0], points[:, 1], points[:, 2],
+                  diff[:, 0], diff[:, 1], diff[:, 2], figure=figure)
+
+
+def view_vector_deformation(points, deformation, figure=None, mask=None):
+    from mayavi import mlab
+    figure.scene.background = (0, 0, 0)
+    if mask is not None:
+        points = points[mask]
+        deformation = deformation[mask]
+    mlab.quiver3d(points[:, 0], points[:, 1], points[:, 2],
+                  deformation[:, 0], deformation[:, 1], deformation[:, 2],
+                  figure=figure)
+
 
 def visualize_nicp(nicp_results, source, target, group=None, style='coloured',
                    browser_style='buttons'):
@@ -81,6 +98,7 @@ def visualize_nicp(nicp_results, source, target, group=None, style='coloured',
         widget_border_radius = 10
         widget_border_width = 1
         animation_style = 'info'
+        renderer_style = 'warning'
         save_figure_style = 'danger'
         info_style = 'info'
     else:
@@ -89,6 +107,7 @@ def visualize_nicp(nicp_results, source, target, group=None, style='coloured',
         widget_border_radius = 0
         widget_border_width = 0
         animation_style = 'minimal'
+        renderer_style = 'minimal'
         save_figure_style = 'minimal'
         info_style = 'minimal'
 
@@ -103,11 +122,34 @@ def visualize_nicp(nicp_results, source, target, group=None, style='coloured',
             del save_figure_wid.__actor
         # Render instance
         id_ = result_number_wid.selected_values if n_results > 1 else 0
-        actor = deformation_visualization(nicp_results[id_][0], source, target,
-                                  save_figure_wid.renderer, group=group,
-                                  w_i_n=nicp_results[id_][2])
-        save_figure_wid.__actor = actor
-        update_info(nicp_results[id_][1])
+
+        # Get options
+        render_options = nicp_opts_wid.selected_values
+
+        mesh, info = nicp_results[id_]
+        mask = None
+
+        masks = [info[v] for v in render_options['mask']]
+        mask = masks[0] if len(masks) == 1 else np.logical_and(*masks)
+
+        if render_options['mode'] == 'surface':
+            actor = deformation_visualization(mesh, source, target,
+                                              save_figure_wid.renderer,
+                                              group=group, mask=mask)
+            save_figure_wid.__actor = actor
+        elif render_options['mode'] == 'distance_vec':
+            view_vector_distance(mesh.points,
+                                 info['nearest_points'] -
+                                 mesh.points,
+                                 mask=mask,
+                                 figure=save_figure_wid.renderer.figure)
+        elif render_options['mode'] == 'deformation_per_iter':
+            view_vector_deformation(mesh.points,
+                                    info['deformation_per_step'],
+                                    mask=mask,
+                                    figure=save_figure_wid.renderer.figure)
+
+        update_info(info)
 
         save_figure_wid.renderer.force_draw()
 
@@ -125,6 +167,9 @@ def visualize_nicp(nicp_results, source, target, group=None, style='coloured',
     info_wid = TextPrintWidget(text_per_line=[''] * 6, style=info_style)
     save_figure_wid = SaveMayaviFigureOptionsWidget(renderer=None,
                                                     style=save_figure_style)
+    nicp_opts_wid = NICPResultWidget(render_function=render_function,
+                                     style=renderer_style)
+
     if n_results > 1:
         # Result selection slider
         index = {'min': 0, 'max': n_results - 1, 'step': 1, 'index': 0}
@@ -141,8 +186,9 @@ def visualize_nicp(nicp_results, source, target, group=None, style='coloured',
         # Header widget
         header_wid = LogoWidget(style=logo_style)
 
-    options_box = ipywidgets.Tab(children=[info_wid, save_figure_wid])
-    tab_titles = ['Info', 'Export']
+    options_box = ipywidgets.Tab(children=[info_wid, nicp_opts_wid,
+                                           save_figure_wid])
+    tab_titles = ['Info', 'Renderer', 'Export']
     for (k, tl) in enumerate(tab_titles):
         options_box.set_title(k, tl)
     wid = ipywidgets.VBox(children=[header_wid, options_box], align='start')
