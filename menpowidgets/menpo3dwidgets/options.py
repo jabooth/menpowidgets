@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from traitlets import Dict
 import ipywidgets
 
@@ -20,11 +21,14 @@ class NICPResultWidget(MenpoWidget):
         self.mask_wid.value = default_options['mask']
         self.mask_wid.height = '2cm'
         self.mask_wid.width = '3cm'
-        self.mode_wid = ipywidgets.RadioButtons(options={
-            'Surface Representation': 'surface',
-            'Distance Vectors': 'distance_vec',
-            'Deformation Vectors': 'deformation_per_iter'
-        })
+
+        ordered_opts = OrderedDict((
+            ('Surface Representation', 'surface'),
+            ('Distance Vectors', 'distance_vec'),
+            ('Deformation Vectors', 'deformation_per_iter')
+        ))
+
+        self.mode_wid = ipywidgets.RadioButtons(options=ordered_opts)
         self.mode_wid.value = default_options['mode']
 
         # Group widgets
