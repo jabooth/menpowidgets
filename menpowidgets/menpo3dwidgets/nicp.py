@@ -1,13 +1,13 @@
 from collections import Sized
 import IPython.display as ipydisplay
 import ipywidgets
-from mayavi import mlab
 import numpy as np
 from menpowidgets.style import map_styles_to_hex_colours
 from menpowidgets.options import (AnimationOptionsWidget, TextPrintWidget,
                                   SaveMayaviFigureOptionsWidget)
 from menpowidgets.tools import LogoWidget
-from menpo.shape import PointCloud, ColouredTriMesh, TriMesh
+from menpo.shape import ColouredTriMesh
+from menpo.transform import AlignmentSimilarity
 
 from .options import NICPResultWidget
 
@@ -26,10 +26,12 @@ def view_landmark_displacement(source, target, renderer, group=None):
     source_lms = source.landmarks[group].lms
     target_lms = target.landmarks[group].lms
 
-    source_lms.view(new_figure=False, marker_colour=(1, 1, 0),
-                    marker_size=0.03)
-    target_lms.view(new_figure=False, marker_colour=(1, 0, 0.5),
-                    marker_size=0.03)
+    # Align the source landmarks to the target as is done in the start of NICP
+    source_lms = AlignmentSimilarity(source_lms,
+                                     target_lms).apply(source_lms)
+
+    source_lms.view(new_figure=False, marker_colour=(1, 1, 0))
+    target_lms.view(new_figure=False, marker_colour=(1, 0, 0.5))
 
     points = source_lms.points
     diff = target_lms.points - source_lms.points
@@ -130,7 +132,12 @@ def visualize_nicp(nicp_results, source, target, group=None, style='coloured',
         mask = None
 
         masks = [info[v] for v in render_options['mask']]
-        mask = masks[0] if len(masks) == 1 else np.logical_and(*masks)
+
+        mask = None
+        if len(masks) == 1:
+            mask = masks[0]
+        elif len(masks) > 1:
+            mask = np.logical_and(*masks)
 
         if render_options['mode'] == 'surface':
             actor = deformation_visualization(mesh, source, target,

@@ -24,7 +24,7 @@ class NICPResultWidget(MenpoWidget):
 
         ordered_opts = OrderedDict((
             ('Surface Representation', 'surface'),
-            ('Distance Vectors', 'distance_vec'),
+            ('Nearest Point Vectors', 'distance_vec'),
             ('Deformation Vectors', 'deformation_per_iter')
         ))
 
