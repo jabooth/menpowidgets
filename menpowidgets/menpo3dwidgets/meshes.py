@@ -60,7 +60,7 @@ def visualize_meshes(meshes, style='coloured', browser_style='buttons'):
         # Render instance
         renderer = meshes[mesh_no].view(
             figure_id=save_figure_wid.renderer.figure_id,
-            new_figure=False, **options)
+            new_figure=False)
 
         # Save the current figure id
         save_figure_wid.renderer = renderer

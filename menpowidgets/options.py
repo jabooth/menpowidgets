@@ -3238,8 +3238,8 @@ class SaveMayaviFigureOptionsWidget(ipywidgets.FlexBox):
 
         # Assign renderer
         if renderer is None:
-            from menpo3d.visualize.viewmayavi import MayaviViewer
-            renderer = MayaviViewer(figure_id=None, new_figure=True)
+            from menpo3d.visualize.viewmayavi import MayaviRenderer
+            renderer = MayaviRenderer(figure_id=None, new_figure=True)
         self.renderer = renderer
 
         # Set style

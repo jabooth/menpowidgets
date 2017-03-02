@@ -30,8 +30,8 @@ def view_landmark_displacement(source, target, renderer, group=None):
     source_lms = AlignmentSimilarity(source_lms,
                                      target_lms).apply(source_lms)
 
-    source_lms.view(new_figure=False, marker_colour=(1, 1, 0))
-    target_lms.view(new_figure=False, marker_colour=(1, 0, 0.5))
+    # source_lms.view(new_figure=False, marker_colour=(1, 1, 0))
+    # target_lms.view(new_figure=False, marker_colour=(1, 0, 0.5))
 
     points = source_lms.points
     diff = target_lms.points - source_lms.points
